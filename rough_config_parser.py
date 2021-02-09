@@ -1,4 +1,4 @@
-# Код написан в образовательных целях и для использования для личных нужд.
+# Код написан в образовательных целях и использования для личных нужд.
 
 """
 Грубый набросок парсера конфигурационного файла
@@ -27,12 +27,12 @@
 
 import base64
 from os.path import isfile as os_isfile
-from typing import Tuple, Union, Callable, Optional
+from typing import Tuple, Union, Callable, Optional, List
 
 import yaml
 from yaml.scanner import ScannerError
 
-from utils import merge_dicts, set_value_for_key
+from .utils import merge_dicts, set_value_for_key
 
 SECRET_KEY = "vNoVP7turjKWUtRWAjyFBXVU4AQY-7hlkagOQFixXEI="
 
@@ -117,9 +117,11 @@ class RoughConfigParser:
     config_file_path: str
     Путь к файлу с настройками
 
-
     hide_fields: List[str] = []
     Список полей (ключей) для которых нужно зашифровывать значение при хранении в файле
+
+    config_file_path_for_update: Optional[List[str]]
+    Список путей к файлу для чтения из них пак ключ - значение, при обновлении
 
     fn_coder_string: Callable[[str],str]
     Функция используемая для шифрования строки
@@ -128,12 +130,14 @@ class RoughConfigParser:
     fn_decoder_string: Callable[[str],str]
     Функция используемая для дешифрования строки
     default decoder_string function
+
     """
 
     def __init__(self,
                  config_file_path_for_init: Optional[str] = None,
                  init_data: Union[Tuple[dict, ...], dict] = ({},),
                  hide_fields: Optional[list] = None,
+                 config_file_path_for_update: Optional[List[str]] = None,
                  fn_coder_string: Callable[[str], str] = None,
                  fn_decoder_string: Callable[[str], str] = None):
 
@@ -141,14 +145,17 @@ class RoughConfigParser:
         self.__coder_string = coder_string
         self.__decoder_string = decoder_string
         self.data = OBJ({})
+        self.config_file_path_for_update: List[str] = []
+        if config_file_path_for_update is not None:
+            self.config_file_path_for_update = config_file_path_for_update
 
         if config_file_path_for_init is not None:
             # Читаем из указанного файла настройки и инициируем экземпляр значениями хранящимися в файле
             self.read_config_file(config_file_path=config_file_path_for_init)
         if isinstance(init_data, dict):
-            init_data = (self._as_dict(), init_data)
+            init_data = (self.as_dict(), init_data)
         elif isinstance(init_data, tuple):
-            init_data = (self._as_dict(),) + init_data
+            init_data = (self.as_dict(),) + init_data
         self.__validation_init_data(init_data)
         self.data = OBJ(merge_dicts(init_data))
         self.set_hide_fields(hide_fields)
@@ -169,6 +176,11 @@ class RoughConfigParser:
         """ Устанавливает список полей (ключей), для которых необходимо скрывать значение при записи в файл """
         self.hide_fields = hide_fields if hide_fields is not None else []
 
+    def set_config_file_path_for_update(self, config_file_path_for_update: Optional[List[str]] = None):
+        """ Устанавливает список полей (ключей), для которых необходимо скрывать значение при записи в файл """
+        if config_file_path_for_update is not None:
+            self.config_file_path_for_update = config_file_path_for_update
+
     def set_fn_coder_string(self, fn_coder_string: Callable[[str], str] = None):
         """ Изменяет функцию кодирования скрытых строк """
         self.__coder_string = fn_coder_string if callable(fn_coder_string) else coder_string
@@ -179,20 +191,25 @@ class RoughConfigParser:
 
     def add_new_config_params(self, dictionaries: dict):
         """ Добавляет новые параметры из dictionaries """
-        old_dictionaries = self._as_dict()
+        old_dictionaries = self.as_dict()
         self.__validation_init_data(dictionaries)
         self.data = OBJ(merge_dicts((old_dictionaries, dictionaries)))
+
+    def add_config_file_path_for_update(self, config_file_path: str):
+        """ Добавляет путь к файлу из которого необходимо прочитать пару ключ - значение при обновлении """
+        self.config_file_path_for_update.append(config_file_path)
 
     def replace_config(self, dictionaries: Union[Tuple[dict, ...], dict] = ({},)):
         """ Очищает старые и создает новые атрибуту из dictionaries """
         self.__validation_init_data(dictionaries)
         self.data = OBJ(merge_dicts(dictionaries))
 
-    def read_config_file(self, config_file_path: str, only_read=False):
+    def read_config_file(self, config_file_path: str, only_read=False, overwrite=True) -> dict:
         """
         Выполняет чтение настроек из файла и возвращает их в случаи успеха.
         Если файла с настройками нет, то создается новый файл с параметрами по умолчанию.
-        Все прочитанные настройки обновляют текущие значения экземпляра.
+        Если overwrite = True, то все прочитанные настройки обновляют (заменяют) текущие значения экземпляра.
+        Если overwrite = False, то все прочитанные настройки объединяются с текущими значениями экземпляра.
         Если only_read = True, то значения будут только прочитаны, но обновление значений экземпляра не произойдет.
         """
 
@@ -211,24 +228,33 @@ class RoughConfigParser:
                             cfg_dict, _ = set_value_for_key(cfg_dict, key, self.__decoder_string)
                         pass
                     if not only_read:
-                        self.replace_config(cfg_dict)
+                        if overwrite:
+                            self.replace_config(cfg_dict)
+                        else:
+                            self.add_new_config_params(cfg_dict)
                     else:
                         if cfg_dict is not None:
                             return dict(cfg_dict)
                         else:
                             return {}
-        return self._as_dict()
+        return self.as_dict()
 
     def write_config_file(self, config_file_path: str):
         """ Запись настроек в файл """
-        data = self._as_dict()
+        data = self.as_dict()
         for key in self.hide_fields:
             data, _ = set_value_for_key(data, key, self.__coder_string)
 
         with open(config_file_path, "w") as yml_file:
             yaml.dump(data, yml_file, default_flow_style=False)
 
-    def _as_dict(self) -> dict:
+    def r_update(self):
+        """ Выполняет чтение значений из файлов в списке config_file_path_for_update """
+        for file_path in self.config_file_path_for_update:
+            if os_isfile(file_path):
+                self.read_config_file(config_file_path=file_path, overwrite=True)
+
+    def as_dict(self) -> dict:
         """ Вернуть объект как словарь """
         result = {}
         d = self.data.__dict__

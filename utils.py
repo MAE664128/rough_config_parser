@@ -50,7 +50,7 @@ def _lowercase_for_dict_keys(any_keys_dict: dict):
 
 
 def set_value_for_key(dct: dict, key: str,
-                      val:Union[Callable[[str], str], Any],
+                      val: Union[Callable[[str], str], Any],
                       only_first: bool = False) -> Tuple[dict, bool]:
     """
     Заменяет первое найденное значение (по уровням) с заданным ключом

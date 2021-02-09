@@ -1,5 +1,5 @@
 import unittest
-from utils import merge_dicts, set_value_for_key, _lowercase_for_dict_keys
+from .utils import merge_dicts, set_value_for_key, _lowercase_for_dict_keys
 from rough_config_parser import RoughConfigParser
 
 
@@ -30,7 +30,7 @@ class TestParser(unittest.TestCase):
         cfg = RoughConfigParser(init_data=(a0,), hide_fields=["pass"])
         cfg.write_config_file('new.yml')
         cfg.read_config_file('new.yml')
-        self.assertEqual(_lowercase_for_dict_keys(a0), cfg._as_dict())
+        self.assertEqual(_lowercase_for_dict_keys(a0), cfg.as_dict())
 
 
 class TestUtils(unittest.TestCase):
