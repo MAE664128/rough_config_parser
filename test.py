@@ -1,6 +1,6 @@
 import unittest
 from .utils import merge_dicts, set_value_for_key, _lowercase_for_dict_keys
-from rough_config_parser import RoughConfigParser
+from .rough_config_parser import RoughConfigParser
 
 
 class TestParser(unittest.TestCase):

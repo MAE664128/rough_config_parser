@@ -34,7 +34,7 @@ from yaml.scanner import ScannerError
 
 from .utils import merge_dicts, set_value_for_key
 
-SECRET_KEY = "vNoVP7turjKWUtRWAjyFBXVU4AQY-7hlkagOQFixXEI="
+SECRET_KEY = "vNoVPdsdv7turjKWUtddfbbRWAayFBXVU4AQY-7hlkagOQFixXEI="
 
 
 def coder_string(native_string: str) -> str:
@@ -96,6 +96,20 @@ class OBJ:
 
     def __setitem__(self, key, value):
         self.__dict__[key] = value
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def keys(self, sort=False):
+        if sort:
+            return sorted(list(self.__dict__.keys()))
+        return self.__dict__.keys()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def values(self):
+        return self.__dict__.values()
 
     def as_dict(self):
         result = {}
@@ -267,6 +281,18 @@ class RoughConfigParser:
 
     def __getitem__(self, key):
         return self.data.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.data.__dict__)
+
+    def keys(self):
+        return self.data.__dict__.keys()
+
+    def items(self):
+        return self.data.__dict__.items()
+
+    def values(self):
+        return self.data.__dict__.values()
 
     def __getattr__(self, attr):
         return self.data[attr]
